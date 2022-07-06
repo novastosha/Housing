@@ -4,7 +4,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.grinderwolf.swm.api.exceptions.UnknownWorldException;
 import com.grinderwolf.swm.api.exceptions.WorldInUseException;
 import com.grinderwolf.swm.api.loaders.SlimeLoader;
-import com.mongodb.MongoClient;
+import com.mongodb.client.MongoClient;
 import com.mongodb.MongoException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -58,7 +58,7 @@ public final class MongoLoader implements SlimeLoader {
     private final String database;
 
     public MongoLoader(MongoHousingDatabaseImpl mongoHousingDatabase) throws MongoException {
-        this.collection = "players_islands_index";
+        this.collection = "players_Houses_index";
         this.database = mongoHousingDatabase.getHousingDatabase().getName();
         this.client = mongoHousingDatabase.getClient();
 
