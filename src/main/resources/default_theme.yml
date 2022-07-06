@@ -1,0 +1,6 @@
+name: Default Theme
+item: oak_sapling
+schematic-file: default_theme_schematic
+plot-size:
+  max-x: 31
+  max-z: 31
