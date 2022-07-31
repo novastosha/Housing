@@ -6,3 +6,7 @@
 #|_|  |_|\___/ \__,_|___/_|_| |_|\__, |
 #                                 __/ |
 #                                |___/
+debug: false
+database:
+  # For the file based database use "file", for the mongo database use "mongo"
+  type: file
