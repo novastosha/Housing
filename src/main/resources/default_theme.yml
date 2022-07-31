@@ -1,6 +1,15 @@
 name: Default Theme
+code-name: default_theme
 item: oak_sapling
-schematic-file: default_theme_schematic
+schematic-file: default_theme_schematic.schem
+npc-spawn:
+  x: 0
+  y: 0
+  z: 0
+spawn:
+  x: 0
+  y: 0
+  z: 0
 plot-size:
   max-x: 31
   max-z: 31
