@@ -1,8 +1,8 @@
 package net.zoda.housing.house.theme;
 
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import net.zoda.housing.utils.WorldlessLocation;
 import org.bukkit.Material;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -12,14 +12,30 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@RequiredArgsConstructor
 public final class Theme {
 
+    public static final Map<UUID,ThemeEditSession> EDIT_SESSIONS = new HashMap<>();
     private static final FileFilter FILE_FILTER = pathname -> pathname.isFile() && pathname.getName().endsWith(".yml") && !pathname.getName().startsWith("-");
     private static final Logger THEMES_LOGGER = Logger.getLogger("Housing Themes");
     public static final Map<String, Theme> THEMES = new HashMap<>();
+
+    @Getter
+    private boolean enabled = true;
+
+    @Getter
+    private WorldlessLocation npcSpawn;
+
+    @Getter
+    private WorldlessLocation spawn;
+
+    public Theme setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        return this;
+    }
 
     @Getter
     private final String codeName;
@@ -62,34 +78,46 @@ public final class Theme {
         String codeName = configuration.getString("code-name");
         String displayName = configuration.getString("name");
         Material material = Material.valueOf(configuration.getString("item", "STONE").toUpperCase());
-        int maxX = getMaxX(configuration);
-        int maxZ = getMaxZ(configuration);
+        getMaxX(configuration);
+        getMaxZ(configuration);
 
-        File schematic = new File(file.getParentFile(), configuration.getString("schematic-file") + ".schem");
+        boolean enabled = true;
+        File schematic = new File(file.getParentFile(), configuration.getString("schematic-file",""));
         if (!schematic.exists()) {
-            THEMES_LOGGER.severe("Theme schematic file: " + schematic.getName()+" does not exist!");
+            schematic = null;
+            enabled = false;
+        }
+
+        WorldlessLocation npcSpawn =  configuration.getSerializable("npc-spawn",WorldlessLocation.class);
+        WorldlessLocation spawn =  configuration.getSerializable("spawn",WorldlessLocation.class);
+
+        THEMES.put(codeName,new Theme(codeName,displayName,material,schematic).setEnabled(enabled).setSpawn(spawn).setNPCSpawn(npcSpawn));
+    }
+
+    private Theme setSpawn(WorldlessLocation spawn) {
+        this.spawn =spawn;
+        return this;
+    }
+
+    private Theme setNPCSpawn(WorldlessLocation npcSpawn) {
+        this.npcSpawn = npcSpawn;
+        return this;
+    }
+
+    private static void getMaxX(YamlConfiguration configuration) {
+        if (configuration.getInt("plot.max-x") < maxX) {
             return;
         }
-
-        THEMES.put(codeName,new Theme(codeName,displayName,material,schematic));
-    }
-
-    private static int getMaxX(YamlConfiguration configuration) {
-        if (configuration.getInt("plot.max-x") < maxX) {
-            return maxX;
-        }
         maxX = configuration.getInt("plot.max-x");
-        THEMES_LOGGER.severe("Maximum plot X was decreased to: "+maxX);
-        return maxX;
+        THEMES_LOGGER.info("Maximum plot X was decreased to: "+maxX);
     }
 
-    private static int getMaxZ(YamlConfiguration configuration) {
+    private static void getMaxZ(YamlConfiguration configuration) {
         if (configuration.getInt("plot.max-z") < maxZ) {
-            return maxZ;
+            return;
         }
         maxZ = configuration.getInt("plot.max-z");
-        THEMES_LOGGER.severe("Maximum plot Z was decreased to: "+maxZ);
-        return maxZ;
+        THEMES_LOGGER.info("Maximum plot Z was decreased to: "+maxZ);
     }
 
     private static boolean checkMissingData(YamlConfiguration configuration, String name) {
@@ -121,11 +149,6 @@ public final class Theme {
 
         if (!configuration.isInt("plot.max-z")) {
             THEMES_LOGGER.severe("Missing max-z value from plot settings from theme: " + name);
-            return false;
-        }
-
-        if (!configuration.isString("schematic-file")) {
-            THEMES_LOGGER.severe("Missing schematic-file from theme: " + name);
             return false;
         }
 
