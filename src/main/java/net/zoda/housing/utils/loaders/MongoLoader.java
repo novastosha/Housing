@@ -1,4 +1,4 @@
-package net.zoda.housing.utils.loader;
+package net.zoda.housing.utils.loaders;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.grinderwolf.swm.api.exceptions.UnknownWorldException;
