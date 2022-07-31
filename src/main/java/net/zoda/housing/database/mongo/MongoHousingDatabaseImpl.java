@@ -10,12 +10,14 @@ import com.mongodb.client.MongoDatabase;
 import lombok.Getter;
 import net.zoda.housing.database.HousingDatabase;
 import net.zoda.housing.house.PlayerHouse;
+import net.zoda.housing.house.rules.VisitingRule;
 import org.bson.UuidRepresentation;
 import org.bson.codecs.configuration.CodecProvider;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,13 +28,8 @@ import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 
 public class MongoHousingDatabaseImpl implements HousingDatabase {
-    private final String connectionString;
-
-
 
     public MongoHousingDatabaseImpl(String connectionString) {
-        this.connectionString = connectionString;
-
         CodecProvider pojoCodecProvider = PojoCodecProvider.builder().automatic(true).build();
         CodecRegistry pojoCodecRegistry = fromRegistries(getDefaultCodecRegistry(), fromProviders(pojoCodecProvider));
 
@@ -56,16 +53,6 @@ public class MongoHousingDatabaseImpl implements HousingDatabase {
     private final MongoCollection<PlayerHouse> playerHouses;
 
     @Override
-    public String getConnectionString() {
-        return connectionString;
-    }
-
-    @Override
-    public MongoDatabase getHousingDatabase() {
-        return housingDatabase;
-    }
-
-    @Override
     public void insertHouse(PlayerHouse house,PlayerHouse... houses) {
         playerHouses.insertOne(house);
 
@@ -75,12 +62,18 @@ public class MongoHousingDatabaseImpl implements HousingDatabase {
     }
 
     @Override
-    public PlayerHouse[] getHousesOf(UUID player) {
+    public PlayerHouse[] getHousesOf(UUID player, VisitingRule... visitingRules) {
         List<PlayerHouse> houses = new ArrayList<>();
 
         try(MongoCursor<PlayerHouse> iterator = playerHouses.find(eq("houseOwner",player)).iterator()) {
             while(iterator.hasNext()){
-                houses.add(iterator.next());
+                PlayerHouse house = iterator.next();
+
+                if(!new HashSet<>(house.getVisitingRules()).containsAll(List.of(visitingRules))) {
+                    continue;
+                }
+
+                houses.add(house);
             }
         }
 
@@ -92,4 +85,7 @@ public class MongoHousingDatabaseImpl implements HousingDatabase {
         return playerHouses.find(eq("_id",houseUUID)).first();
     }
 
+    public MongoDatabase getHousingDatabase() {
+        return housingDatabase;
+    }
 }
