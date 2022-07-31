@@ -3,16 +3,26 @@ package net.zoda.housing.plugin;
 import com.grinderwolf.swm.api.SlimePlugin;
 import com.grinderwolf.swm.api.loaders.SlimeLoader;
 import lombok.Getter;
+import net.zoda.api.command.manager.CommandManager;
+import net.zoda.housing.commands.theme.HomeCommand;
+import net.zoda.housing.commands.theme.HousingCommand;
+import net.zoda.housing.commands.theme.ThemeCommand;
+import net.zoda.housing.commands.theme.VisitCommand;
 import net.zoda.housing.database.HousingDatabase;
-import net.zoda.housing.database.mongo.MongoHousingDatabaseImpl;
 import net.zoda.housing.house.PlayerHouse;
 import net.zoda.housing.house.rules.VisitingRule;
+import net.zoda.housing.house.theme.Theme;
+import net.zoda.housing.house.theme.ThemeEditSession;
 import net.zoda.housing.utils.Files;
-import net.zoda.housing.utils.loader.MongoLoader;
+import net.zoda.housing.utils.loaders.TemporaryLoader;
+import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -24,8 +34,13 @@ public class HousingPlugin extends JavaPlugin {
 
     @Getter private static Logger pluginLogger;
     @Getter private static SlimePlugin slime;
-    @Getter private static SlimeLoader houseLoader;
     @Getter private static HousingDatabase database;
+    @Getter private static SlimeLoader temporaryWorldLoader;
+    private static boolean debugMode = false;
+
+    public static boolean isInDebugMode() {
+        return debugMode;
+    }
 
     @Override
     public void onEnable() {
@@ -44,21 +59,52 @@ public class HousingPlugin extends JavaPlugin {
                 getServer().getPluginManager().disablePlugin(this);
                 return;
             }
-            file.onCreate();
+            try {
+                file.onCreate();
+            } catch (IOException e) {
+                pluginLogger.severe("There was an error creating file: "+file.getFile().getPath());
+                e.printStackTrace();
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
         }
+
+        debugMode = getConfig().getBoolean("debug",false);
 
         if(!checkPlugin("SlimeWorldManager")) return;
         if(!checkPlugin("FastAsyncWorldEdit")) return;
 
         slime = (SlimePlugin) getServer().getPluginManager().getPlugin("SlimeWorldManager");
-        database = new MongoHousingDatabaseImpl("mongodb://localhost:27017");
 
-        if(database instanceof MongoHousingDatabaseImpl mongoHousingDatabase) {
-            houseLoader = new MongoLoader(mongoHousingDatabase);
+        deleteTemporaryWorlds();
+        temporaryWorldLoader = new TemporaryLoader();
 
+        HousingDatabase.DatabaseType type = HousingDatabase.DatabaseType.get();
+
+        pluginLogger.info("Using: \""+type.name+"\" as the database!");
+        database = type.construct();
+
+        if(database == null) {
+            pluginLogger.severe("Couldn't connect to database!");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
         }
 
-        testFakeHouses();
+        CommandManager.getInstance().registerCommands(this,
+                new ThemeCommand(),
+                new HousingCommand(),
+                new VisitCommand(),
+                new HomeCommand()
+        );
+
+        Theme.loadThemes(Files.THEMES_DIRECTORY.getFile());
+    }
+
+    private void deleteTemporaryWorlds() {
+        File[] files = Files.TEMPORARY_THEME_EDIT_WORLDS.getFile().listFiles();
+
+        if(files == null) return;
+        Arrays.stream(files).forEach(File::delete);
     }
 
     private void testFakeHouses() {
@@ -99,5 +145,29 @@ public class HousingPlugin extends JavaPlugin {
         } catch (IOException e) {
             return false;
         }
+    }
+
+    /**
+     * Used {@link org.bukkit.entity.Player#kickPlayer(String)} (Which is deprecated in Paper) to evade usage of Kyori Adventure Text
+     */
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onDisable() {
+        pluginLogger.info("Ending theme editing sessions!");
+
+        for(UUID uuid : Theme.EDIT_SESSIONS.keySet()) {
+
+            ThemeEditSession themeEditSession = Theme.EDIT_SESSIONS.get(uuid);
+            Player player = getServer().getPlayer(uuid);
+
+            if(player != null && player.isOnline()
+                    && themeEditSession.world().equals(player.getWorld())) {
+                player.kickPlayer(ChatColor.RED+"Housing Plugin has been disabled!");
+            }
+
+            ThemeCommand.endSession(uuid,false);
+        }
+        Theme.EDIT_SESSIONS.clear();
+        deleteTemporaryWorlds();
     }
 }
