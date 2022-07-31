@@ -20,36 +20,85 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.zoda.housing.house.PlayerHouse;
 import net.zoda.housing.house.theme.Theme;
 import net.zoda.housing.plugin.HousingPlugin;
+import net.zoda.housing.utils.WorldlessLocation;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static net.zoda.housing.house.PlayerHouse.HOUSES_LOGGER;
 
 public class LiveHouseInstance implements Listener {
 
     private static final Map<PlayerHouse,LiveHouseInstance> RUNNING_HOUSES = new HashMap<>();
+
+    public static boolean isPlayerInHouse(Player player){
+        return getCurrentHouseOf(player) != null;
+    }
+
+    public static LiveHouseInstance getCurrentHouseOf(Player player) {
+        for(LiveHouseInstance houseInstance : RUNNING_HOUSES.values()) {
+            if(houseInstance.playerInHouse(player)) return houseInstance;
+        }
+        return null;
+    }
+
     private static final SlimePropertyMap PROPERTY_MAP = new SlimePropertyMap();
 
-    
+    @Getter private final List<Player> players = new ArrayList<>();
     @Getter private final PlayerHouse house;
     @Getter private final SlimeWorld slimeWorld;
     @Getter private final World bukkitWorld;
     private final int savingTaskID;
+    private final int syncingTaskID;
     @Getter @Setter
     private Theme theme;
 
+    @Getter @Setter
+    private WorldlessLocation spawnLocation;
+
     public void flushUpdates(boolean notify) {
 
+    }
+
+    public void syncPlayers() {
+
+        ArrayList<Player> playerArrayList = new ArrayList<>();
+        for(Player worldPlayer : players) {
+            if(worldPlayer.getWorld().equals(bukkitWorld)) continue;
+
+            worldPlayer.kickPlayer(ChatColor.RED+"You left house: "+house.getHouseUUID()+" illegally!");
+            playerArrayList.add(worldPlayer);
+        }
+        players.removeAll(playerArrayList);
+
+        for(Player worldPlayer : bukkitWorld.getPlayers()) {
+            if(players.contains(worldPlayer)) continue;
+
+            join(worldPlayer);
+        }
+    }
+
+    private void join(Player player) {
+
+    }
+
+    private void leave(Player player) {
+
+    }
+
+    public boolean playerInHouse(Player player) {
+        syncPlayers();
+        return players.contains(player);
     }
 
     public static final class UnableToLoadHouseException extends Exception{
@@ -70,21 +119,11 @@ public class LiveHouseInstance implements Listener {
         try {
             final String houseName = "housing-" + house.getHouseUUID().toString();
 
-            if (!HousingPlugin.getHouseLoader().worldExists(houseName)) {
-               HousingPlugin.getSlime().asyncCreateEmptyWorld(HousingPlugin.getHouseLoader(),houseName,false,PROPERTY_MAP).get();
+            if (!HousingPlugin.getTemporaryWorldLoader().worldExists(houseName)) {
+               HousingPlugin.getSlime().createEmptyWorld(HousingPlugin.getTemporaryWorldLoader(),houseName,false,PROPERTY_MAP);
             }
 
-            Optional<SlimeWorld> result = HousingPlugin.getSlime().asyncLoadWorld(HousingPlugin.getHouseLoader(), houseName, true, PROPERTY_MAP).get();
-
-            if (result.isEmpty()) {
-                HOUSES_LOGGER.severe("Unable to load house with UUID: " + house.getHouseUUID());
-                if (sender != null) {
-                    sender.sendMessage(loadHouseError);
-                }
-                throw new UnableToLoadHouseException("Slime couldn't load world (Result is empty)");
-            }
-
-            this.slimeWorld = result.get();
+            this.slimeWorld = HousingPlugin.getSlime().loadWorld(HousingPlugin.getTemporaryWorldLoader(), houseName, true, PROPERTY_MAP);
             this.bukkitWorld = HousingPlugin.getInstance().getServer().getWorld(houseName);
         } catch (Exception e) {
             HOUSES_LOGGER.severe("Unable to load house with UUID: " + house.getHouseUUID());
@@ -120,7 +159,7 @@ public class LiveHouseInstance implements Listener {
             if(!getHouse().getEncodedHouse().equals("")) {
                 byte[] decoded = Base64.getDecoder().decode(getHouse().getEncodedHouse());
 
-                ClipboardFormat houseFormat = ClipboardFormats.findByAlias("SPONGE");
+                ClipboardFormat houseFormat = ClipboardFormats.findByAlias("FAST_SCHEMATIC");
                 try (ClipboardReader reader = houseFormat.getReader(new ByteArrayInputStream(decoded))) {
                     Clipboard clipboard = reader.read();
 
@@ -149,13 +188,19 @@ public class LiveHouseInstance implements Listener {
 
         this.savingTaskID = housingPlugin.getServer().getScheduler()
                 .scheduleSyncRepeatingTask(housingPlugin, () -> flushUpdates(true),0L,(20L*60L)*3L);
+        this.syncingTaskID = housingPlugin.getServer().getScheduler()
+                .scheduleSyncRepeatingTask(housingPlugin, this::syncPlayers,0L,20L*30L);
     }
 
     public void shutdown() {
+        HandlerList.unregisterAll(this);
         flushUpdates(false);
         Bukkit.getServer().getScheduler().cancelTask(savingTaskID);
+        Bukkit.getServer().getScheduler().cancelTask(syncingTaskID);
+        for(Player player : bukkitWorld.getPlayers()) {
+            player.kickPlayer(ChatColor.RED+"House closed!");
+        }
         Bukkit.getServer().unloadWorld(bukkitWorld,false);
-        HandlerList.unregisterAll(this);
     }
 
     public static boolean isLoaded(PlayerHouse house) {
@@ -173,4 +218,7 @@ public class LiveHouseInstance implements Listener {
     public static LiveHouseInstance getHouseInstance(PlayerHouse house) throws UnableToLoadHouseException {
         return getHouseInstance(house,null);
     }
+
+    @EventHandler
+    public void onTeleport(PlayerChangedWorldEvent event) { if(event.getPlayer().getWorld().equals(bukkitWorld)) syncPlayers(); }
 }
