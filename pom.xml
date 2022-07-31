@@ -6,7 +6,7 @@
 
     <groupId>net.zoda</groupId>
     <artifactId>Housing</artifactId>
-    <version>0.0.1-INDEV</version>
+    <version>0.0.3-INDEV</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -26,9 +26,19 @@
             <id>nbt-flow</id>
             <url>https://repo.rapture.pw/repository/maven-releases/</url>
         </repository>
+        <repository>
+            <id>jitpack-io</id>
+            <url>https://jitpack.io</url>
+        </repository>
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>com.github.novastosha</groupId>
+            <artifactId>CommandAPI</artifactId>
+            <version>master-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>

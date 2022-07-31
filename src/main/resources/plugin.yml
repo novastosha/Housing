@@ -1,10 +1,11 @@
 name: Housing
 main: net.zoda.housing.plugin.HousingPlugin
-version: 0.0.1-INDEV
+version: 0.0.3-INDEV
 description: Play with your friends in your own world!
 api-version: 1.19
 database: true
 load: STARTUP
 depend:
+  - CommandAPI
   - SlimeWorldManager
   - FastAsyncWorldEdit
