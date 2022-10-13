@@ -7,6 +7,9 @@ import net.zoda.housing.plugin.HousingPlugin;
 
 import java.util.*;
 
+/**
+ * The memory (runtime / live) implementation of the {@link HousingDatabase}
+ */
 public class MemoryHousingDatabaseImpl implements HousingDatabase {
 
     private final HashMap<UUID, PlayerHouse> houses;
@@ -47,8 +50,12 @@ public class MemoryHousingDatabaseImpl implements HousingDatabase {
         return houses.get(houseUUID);
     }
 
+    @Override
+    public PlayerHouse[] getHouses() {
+        return houses.values().toArray(new PlayerHouse[0]);
+    }
 
-
-
-
+    public void clear() {
+        houses.clear();
+    }
 }

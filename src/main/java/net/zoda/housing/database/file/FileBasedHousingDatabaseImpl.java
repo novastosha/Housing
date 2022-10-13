@@ -1,5 +1,6 @@
 package net.zoda.housing.database.file;
 
+import net.zoda.housing.commands.theme.ThemeCommand;
 import net.zoda.housing.database.HousingDatabase;
 import net.zoda.housing.house.PlayerHouse;
 import net.zoda.housing.house.rules.VisitingRule;
@@ -14,6 +15,9 @@ import java.io.IOException;
 import java.util.*;
 import java.util.logging.Logger;
 
+/**
+ * The file implementation of the {@link HousingDatabase}
+ */
 public class FileBasedHousingDatabaseImpl implements HousingDatabase {
     private final File workDir;
     private final Logger logger = HousingPlugin.getPluginLogger();
@@ -55,7 +59,7 @@ public class FileBasedHousingDatabaseImpl implements HousingDatabase {
             ConfigurationSection configuration = YamlConfiguration.loadConfiguration(file);
             configuration = configuration.getConfigurationSection("data");
 
-            if(configuration == null) continue;
+            if (configuration == null) continue;
             if (!configuration.contains("owner")) continue;
 
             UUID uuid = UUID.fromString(Objects.requireNonNull(configuration.getString("owner")));
@@ -70,12 +74,31 @@ public class FileBasedHousingDatabaseImpl implements HousingDatabase {
 
     @Override
     public PlayerHouse getHouse(UUID houseUUID) {
-        File file = new File(workDir,houseUUID.toString()+".yml");
-        if(!file.exists()) {
+        File file = new File(workDir, houseUUID.toString() + ".yml");
+        if (!file.exists()) {
             return null;
         }
 
         return deserializeHouse(YamlConfiguration.loadConfiguration(file).getConfigurationSection("data"));
+    }
+
+    @Override
+    public PlayerHouse[] getHouses() {
+        List<PlayerHouse> houses = new ArrayList<>();
+        try {
+            for (File file : workDir.listFiles(HOUSE_FILTER)) {
+                ConfigurationSection configuration = YamlConfiguration.loadConfiguration(file);
+                configuration = configuration.getConfigurationSection("data");
+
+                if (configuration == null) continue;
+                if (!configuration.contains("owner")) continue;
+
+                houses.add(deserializeHouse(configuration));
+            }
+        } catch (Exception ignored) {
+
+        }
+        return houses.toArray(new PlayerHouse[0]);
     }
 
     public static ConfigurationSection serializeHouse(PlayerHouse house) {
@@ -83,24 +106,32 @@ public class FileBasedHousingDatabaseImpl implements HousingDatabase {
 
         section.set("uuid", house.getHouseUUID().toString());
         section.set("owner", house.getHouseOwner().toString());
-        section.set("visiting-rules", house.getVisitingRules());
+        section.set("visiting-rules", visitingRulesToStringList(house.getVisitingRules()));
         section.set("current-theme", house.getThemeName());
         section.set("encoded-house", house.getEncodedHouse());
+        section.set("coordinates",ThemeCommand.coordsConfigurationSection(house.getCoordinates(),section.createSection("coordinates")));
 
         return section;
     }
 
+    private static List<String> visitingRulesToStringList(List<VisitingRule> visitingRules) {
+        List<String> list = new ArrayList<>();
+        visitingRules.forEach(visitingRule -> list.add(visitingRule.name()));
+        return list;
+    }
+
     public static PlayerHouse deserializeHouse(ConfigurationSection section) {
 
-        if(section == null) return null;
-        if (!section.contains("uuid") || !section.contains("owner")) {
+        if (section == null) return null;
+        if (!section.contains("uuid") || !section.contains("owner") || !section.contains("coordinates")) {
             return null;
         }
 
         return new PlayerHouse(UUID.fromString(section.getString("uuid"))
                 , UUID.fromString(section.getString("owner"))
                 , resolveVisitingRules(section.getStringList("visiting-rules"))
-                , section.getString("theme-name", "default"));
+                , section.getString("theme-name", "default")
+        , ThemeCommand.coordsFromConfigurationSection(section.getConfigurationSection("coordinates")));
     }
 
     private File getHouseFile(UUID houseUUID) throws IOException {

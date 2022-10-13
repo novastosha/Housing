@@ -16,17 +16,16 @@ import org.bson.codecs.configuration.CodecProvider;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static com.mongodb.client.model.Filters.eq;
 import static com.mongodb.MongoClientSettings.getDefaultCodecRegistry;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
-
+/**
+ * The {@link HousingDatabase} implementation for MongoDB
+ */
 public class MongoHousingDatabaseImpl implements HousingDatabase {
 
     public MongoHousingDatabaseImpl(String connectionString) {
@@ -83,6 +82,17 @@ public class MongoHousingDatabaseImpl implements HousingDatabase {
     @Override
     public PlayerHouse getHouse(UUID houseUUID) {
         return playerHouses.find(eq("_id",houseUUID)).first();
+    }
+
+    @Override
+    public PlayerHouse[] getHouses() {
+        List<PlayerHouse> houses = new ArrayList<>();
+
+        for(PlayerHouse house : playerHouses.find()) {
+            houses.add(house);
+        }
+
+        return houses.toArray(new PlayerHouse[0]);
     }
 
     public MongoDatabase getHousingDatabase() {
