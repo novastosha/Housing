@@ -9,12 +9,17 @@ import org.bson.codecs.pojo.annotations.BsonId;
 import org.bson.codecs.pojo.annotations.BsonIgnore;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 public final class PlayerHouse {
 
     public static final Logger HOUSES_LOGGER = Logger.getLogger("Houses");
+
+    @Getter
+    @Setter
+    private Map<Theme.CoordinateType, Integer> coordinates;
 
     @Getter
     @Setter
@@ -38,17 +43,11 @@ public final class PlayerHouse {
     private String encodedHouse;
 
 
-   /* @BsonIgnore
-    @Getter
-    private SlimeWorld loadedWorld;
-*/
+    public PlayerHouse() {}
 
-    public PlayerHouse() {
-
-    }
-
-    public PlayerHouse(UUID houseUUID, UUID houseOwner, List<VisitingRule> visitingRules,String themeName) {
+    public PlayerHouse(UUID houseUUID, UUID houseOwner, List<VisitingRule> visitingRules, String themeName, Map<Theme.CoordinateType,Integer> createdCoordinates) {
         this.houseUUID = houseUUID;
+        this.coordinates = createdCoordinates;
         this.themeName = themeName;
         this.houseOwner = houseOwner;
         this.encodedHouse = "";
@@ -56,7 +55,7 @@ public final class PlayerHouse {
 
         if(!Theme.THEMES.containsKey(themeName)) {
             HOUSES_LOGGER.severe("House with UUID: "+houseUUID.toString()+" attempted to use nonexistent theme! Defaulting!");
-            this.themeName = "default_theme";
+            this.themeName = Theme.DEFAULT_THEME.getCodeName();
         }
     }
 
@@ -64,48 +63,4 @@ public final class PlayerHouse {
     public boolean isLoaded() {
         return LiveHouseInstance.isLoaded(this);
     }
-
- /*   public boolean load(CommandSender sender) {
-        if (isLoaded()) {
-            return true;
-        }
-
-
-        Component loadHouseError = Component.text("Unable to load this house, please notify an admin about it!").color(NamedTextColor.RED);
-        try {
-            final String houseName = "housing-" + houseUUID.toString();
-
-            if (!HousingPlugin.getHouseLoader().worldExists(houseName)) {
-                if(sender instanceof Player player && player.getUniqueId().equals(houseOwner)) {
-                    HOUSES_LOGGER.info("Creating new house of player: "+player.getUniqueId()+" with UUID: "+houseUUID.toString());
-                    player.sendMessage(Component.text("Creating a new house...").color(NamedTextColor.GREEN));
-                }
-                HousingPlugin.getSlime().asyncCreateEmptyWorld(HousingPlugin.getHouseLoader(),houseName,false,PROPERTY_MAP);
-            }
-
-            Optional<SlimeWorld> result = HousingPlugin.getSlime().asyncLoadWorld(HousingPlugin.getHouseLoader(), houseName, false, PROPERTY_MAP).get();
-
-            if (result.isEmpty()) {
-                HOUSES_LOGGER.severe("Unable to load house with UUID: " + houseUUID);
-                if (sender != null) {
-                    sender.sendMessage(loadHouseError);
-                }
-                return false;
-            }
-
-            loadedWorld = result.get();
-            return true;
-        } catch (Exception e) {
-            HOUSES_LOGGER.severe("Unable to load house with UUID: " + houseUUID);
-            e.printStackTrace();
-            if (sender != null) {
-                sender.sendMessage(loadHouseError);
-            }
-            return false;
-        }
-    }
-
-    public boolean load() {
-        return load(null);
-    }*/
 }
