@@ -1,4 +1,4 @@
-package net.zoda.housing.commands.theme;
+package net.zoda.housing.commands.house;
 
 import net.zoda.api.command.ACommand;
 import net.zoda.api.command.Command;
@@ -9,7 +9,6 @@ import net.zoda.housing.database.HousingDatabase;
 import net.zoda.housing.house.PlayerHouse;
 import net.zoda.housing.house.rules.VisitingRule;
 import net.zoda.housing.plugin.HousingPlugin;
-import net.zoda.housing.ui.HousesListGUI;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -27,8 +26,6 @@ public class VisitCommand implements ACommand {
             player.sendMessage(ChatColor.RED+"This player has no houses!");
             return;
         }
-
-        new HousesListGUI(houses).open(player);
     }
 
 }
