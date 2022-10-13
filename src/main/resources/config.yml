@@ -7,6 +7,19 @@
 #                                 __/ |
 #                                |___/
 debug: false
+default-theme: default
 database:
   # For the file based database use "file", for the mongo database use "mongo"
   type: file
+  #MongoDB configuration
+  mongo-db:
+    host: localhost
+    port: 27017
+    #Leave blank if no user information is needed
+    username: ""
+    password: ""
+houses:
+  # The amount of houses a player can have
+  maximum-player-houses: 20
+  # The maximum amount of players a house can hold (can be bypassed with "housing.bypass.guest-limit")
+  maximum-house-guests: 150
