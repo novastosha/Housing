@@ -1,4 +1,4 @@
-package net.zoda.housing.commands.theme;
+package net.zoda.housing.commands.house;
 
 import net.zoda.api.command.ACommand;
 import net.zoda.api.command.Command;
